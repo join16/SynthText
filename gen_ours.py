@@ -18,12 +18,13 @@ import os, sys, traceback
 import os.path as osp
 from synthgen import *
 from common import *
+import _pickle as cp
 import wget, tarfile
 
 
 ## Define some configuration variables:
 NUM_IMG = -1 # no. of images to use for generation (-1 to use all available):
-INSTANCE_PER_IMAGE = 1 # no. of times to use the same image
+INSTANCE_PER_IMAGE = 10 # no. of times to use the same image
 SECS_PER_IMG = 5 #max time per image in seconds
 
 # path to the data-file, containing image, depth and segmentation:
@@ -33,7 +34,10 @@ DB_FNAME = osp.join(DATA_PATH,'dset.h5')
 DATA_URL = 'http://www.robots.ox.ac.uk/~ankush/data.tar.gz'
 OUT_FILE = 'results/SynthText.h5'
 
-def save_as_images(imname, res):
+OUR_DATA_PATH = "data/bg_preproc"
+IMG_DIR = osp.join(OUR_DATA_PATH, "bg_img")
+
+def save_as_images(img_index, res):
   ninstance = len(res)
   for i in range(ninstance):
     bg_img = res[i]['original']
@@ -46,8 +50,8 @@ def save_as_images(imname, res):
     img = bg_img[y1:y2, x1:x2, :]
     img_text = text_img[y1:y2, x1:x2, :]
 
-    cv2.imwrite("results/{}_{}_bg.png".format(imname, i), img)
-    cv2.imwrite("results/{}_{}_text.png".format(imname, i), img_text)
+    cv2.imwrite("results/synth/bg/{}_{}.png".format(img_index, i), img)
+    cv2.imwrite("results/synth/text/{}_{}.png".format(img_index, i), img_text)
     pass
   pass
 
@@ -90,28 +94,17 @@ def get_rough_bbox_list(bbox_list, shape):
   return int(x_min), int(y_min), int(x_max), int(y_max)
 
 def get_data():
-  """
-  Download the image,depth and segmentation data:
-  Returns, the h5 database.
-  """
-  if not osp.exists(DB_FNAME):
-    try:
-      colorprint(Color.BLUE,'\tdownloading data (56 M) from: '+DATA_URL,bold=True)
-      sys.stdout.flush()
-      out_fname = 'data.tar.gz'
-      wget.download(DATA_URL,out=out_fname)
-      tar = tarfile.open(out_fname)
-      tar.extractall()
-      tar.close()
-      os.remove(out_fname)
-      colorprint(Color.BLUE,'\n\tdata saved at:'+DB_FNAME,bold=True)
-      sys.stdout.flush()
-    except:
-      print(colorize(Color.RED,'Data not found and have problems downloading.',bold=True))
-      sys.stdout.flush()
-      sys.exit(-1)
-  # open the h5 file and return:
-  return h5py.File(DB_FNAME,'r')
+  seg_db = h5py.File(osp.join(OUR_DATA_PATH, "seg.h5"))
+  depth_db = h5py.File(osp.join(OUR_DATA_PATH, "depth.h5"))
+
+  return {
+    "seg": seg_db["mask"],
+    "depth": depth_db
+  }
+
+def get_filtered_imnames():
+  with open(osp.join(OUR_DATA_PATH, 'imnames.cp'), 'rb') as f:
+    return list(cp.load(f))
 
 
 def add_res_to_db(imgname,res,db):
@@ -130,16 +123,10 @@ def add_res_to_db(imgname,res,db):
 def main(viz=False):
   # open databases:
   print(colorize(Color.BLUE,'getting data..',bold=True))
-  db = get_data()
   print(colorize(Color.BLUE,'\t-> done',bold=True))
 
-  # open the output h5 file:
-  out_db = h5py.File(OUT_FILE,'w')
-  out_db.create_group('/data')
-  print(colorize(Color.GREEN,'Storing the output in: '+OUT_FILE, bold=True))
-
   # get the names of the image files in the dataset:
-  imnames = sorted(db['image'].keys())
+  imnames = get_filtered_imnames()
   N = len(imnames)
   global NUM_IMG
   if NUM_IMG < 0:
@@ -147,11 +134,16 @@ def main(viz=False):
   start_idx,end_idx = 0,min(NUM_IMG, N)
 
   RV3 = RendererV3(DATA_PATH,max_time=SECS_PER_IMG)
+  db = get_data()
+
   for i in range(start_idx,end_idx):
     imname = imnames[i]
     try:
-      # get the image:
-      img = Image.fromarray(db['image'][imname][:])
+      # get the image
+      img_path = osp.join(IMG_DIR, imname)
+      if not osp.exists(img_path):
+        continue
+      img = Image.open(img_path)
       # get the pre-computed depth:
       #  there are 2 estimates of depth (represented as 2 "channels")
       #  here we are using the second one (in some cases it might be
@@ -173,8 +165,7 @@ def main(viz=False):
                             ninstance=INSTANCE_PER_IMAGE,viz=viz)
       if len(res) > 0:
         # non-empty : successful in placing text:
-        save_as_images(imname, res)
-        add_res_to_db(imname,res,out_db)
+        save_as_images(i, res)
       # visualize the output:
       if viz:
         if 'q' in input(colorize(Color.RED,'continue? (enter to continue, q to exit): ',True)):
@@ -183,8 +174,6 @@ def main(viz=False):
       traceback.print_exc()
       print(colorize(Color.GREEN,'>>>> CONTINUING....', bold=True))
       continue
-  db.close()
-  out_db.close()
 
 
 if __name__=='__main__':

@@ -303,6 +303,7 @@ class Colorize(object):
         """
         bg_col,fg_col,i = 0,0,0
         fg_col,bg_col = self.font_color.sample_from_data(bg_arr)
+        fg_col = np.array([0, 0, 0])
         return Layer(alpha=text_arr, color=fg_col), fg_col, bg_col
 
 
