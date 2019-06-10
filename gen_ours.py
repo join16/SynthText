@@ -55,6 +55,7 @@ def save_as_images(img_index, res):
     pass
   pass
 
+SIZE = 256
 def get_rough_bbox_list(bbox_list, shape):
   bbox_list = np.array(bbox_list)
   x_coords = np.array([])
@@ -70,28 +71,34 @@ def get_rough_bbox_list(bbox_list, shape):
   y_min = np.min(y_coords)
   y_max = np.max(y_coords)
 
-  width = x_max - x_min
-  height = y_max - y_min
+  x_mid = int(np.mean([x_min, x_max]))
+  y_mid = int(np.mean([y_min, y_max]))
+
   H, W, _ = shape
+  half_size = SIZE // 2
 
-  if width > height:
-    side = width
-    y_max = y_min + side
-    if y_max > H:
-      diff = y_max - H
-      y_min -= diff
-      y_max -= diff
+  x_start = x_mid - half_size
+  x_end = x_mid + half_size
+  y_start = y_mid - half_size
+  y_end = y_mid + half_size
 
-  if height > width:
-    side = height
-    x_max = x_min + side
+  if x_start < 0:
+    x_end -= x_start
+    x_start = 0
+  elif x_end > W:
+    diff = x_end - W
+    x_end = W
+    x_start -= diff
 
-    if x_max > W:
-      diff = x_max - W
-      x_min -= diff
-      x_max -= diff
+  if y_start < 0:
+    y_end -= y_start
+    y_start = 0
+  elif y_end > H:
+    diff = y_end - H
+    y_end = W
+    y_start -= diff
 
-  return int(x_min), int(y_min), int(x_max), int(y_max)
+  return int(x_start), int(y_start), int(x_end), int(y_end)
 
 def get_data():
   seg_db = h5py.File(osp.join(OUR_DATA_PATH, "seg.h5"))
