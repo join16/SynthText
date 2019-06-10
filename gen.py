@@ -33,6 +33,62 @@ DB_FNAME = osp.join(DATA_PATH,'dset.h5')
 DATA_URL = 'http://www.robots.ox.ac.uk/~ankush/data.tar.gz'
 OUT_FILE = 'results/SynthText.h5'
 
+def save_as_images(imname, res):
+  ninstance = len(res)
+  for i in range(ninstance):
+    bg_img = res[i]['original']
+    text_img = res[i]['img']
+    x1, y1, x2, y2 = get_rough_bbox_list(res[i]['wordBB'], bg_img.shape)
+
+    if x1 < 0 or y1 < 0:
+      continue
+
+    img = bg_img[y1:y2, x1:x2, :]
+    img_text = text_img[y1:y2, x1:x2, :]
+
+    cv2.imwrite("results/{}_{}_bg.png".format(imname, i), img)
+    cv2.imwrite("results/{}_{}_text.png".format(imname, i), img_text)
+    pass
+  pass
+
+def get_rough_bbox_list(bbox_list, shape):
+  bbox_list = np.array(bbox_list)
+  x_coords = np.array([])
+  y_coords = np.array([])
+
+  for word_idx in range(bbox_list.shape[-1]):
+    bbox = bbox_list[:, :, word_idx]
+    x_coords = np.concatenate([x_coords, bbox[0]])
+    y_coords = np.concatenate([y_coords, bbox[1]])
+
+  x_min = np.min(x_coords)
+  x_max = np.max(x_coords)
+  y_min = np.min(y_coords)
+  y_max = np.max(y_coords)
+
+  width = x_max - x_min
+  height = y_max - y_min
+  H, W, _ = shape
+
+  if width > height:
+    side = width
+    y_max = y_min + side
+    if y_max > H:
+      diff = y_max - H
+      y_min -= diff
+      y_max -= diff
+
+  if height > width:
+    side = height
+    x_max = x_min + side
+
+    if x_max > W:
+      diff = x_max - W
+      x_min -= diff
+      x_max -= diff
+
+  return int(x_min), int(y_min), int(x_max), int(y_max)
+
 def get_data():
   """
   Download the image,depth and segmentation data:
@@ -52,7 +108,7 @@ def get_data():
       colorprint(Color.BLUE,'\n\tdata saved at:'+DB_FNAME,bold=True)
       sys.stdout.flush()
     except:
-      print colorize(Color.RED,'Data not found and have problems downloading.',bold=True)
+      print(colorize(Color.RED,'Data not found and have problems downloading.',bold=True))
       sys.stdout.flush()
       sys.exit(-1)
   # open the h5 file and return:
@@ -65,7 +121,7 @@ def add_res_to_db(imgname,res,db):
   and other metadata to the dataset.
   """
   ninstance = len(res)
-  for i in xrange(ninstance):
+  for i in range(ninstance):
     dname = "%s_%d"%(imgname, i)
     db['data'].create_dataset(dname,data=res[i]['img'])
     db['data'][dname].attrs['charBB'] = res[i]['charBB']
@@ -75,14 +131,14 @@ def add_res_to_db(imgname,res,db):
 
 def main(viz=False):
   # open databases:
-  print colorize(Color.BLUE,'getting data..',bold=True)
+  print(colorize(Color.BLUE,'getting data..',bold=True))
   db = get_data()
-  print colorize(Color.BLUE,'\t-> done',bold=True)
+  print(colorize(Color.BLUE,'\t-> done',bold=True))
 
   # open the output h5 file:
   out_db = h5py.File(OUT_FILE,'w')
   out_db.create_group('/data')
-  print colorize(Color.GREEN,'Storing the output in: '+OUT_FILE, bold=True)
+  print(colorize(Color.GREEN,'Storing the output in: '+OUT_FILE, bold=True))
 
   # get the names of the image files in the dataset:
   imnames = sorted(db['image'].keys())
@@ -93,7 +149,7 @@ def main(viz=False):
   start_idx,end_idx = 0,min(NUM_IMG, N)
 
   RV3 = RendererV3(DATA_PATH,max_time=SECS_PER_IMG)
-  for i in xrange(start_idx,end_idx):
+  for i in range(start_idx,end_idx):
     imname = imnames[i]
     try:
       # get the image:
@@ -114,19 +170,20 @@ def main(viz=False):
       img = np.array(img.resize(sz,Image.ANTIALIAS))
       seg = np.array(Image.fromarray(seg).resize(sz,Image.NEAREST))
 
-      print colorize(Color.RED,'%d of %d'%(i,end_idx-1), bold=True)
+      print(colorize(Color.RED,'%d of %d'%(i,end_idx-1), bold=True))
       res = RV3.render_text(img,depth,seg,area,label,
                             ninstance=INSTANCE_PER_IMAGE,viz=viz)
       if len(res) > 0:
         # non-empty : successful in placing text:
+        save_as_images(imname, res)
         add_res_to_db(imname,res,out_db)
       # visualize the output:
       if viz:
-        if 'q' in raw_input(colorize(Color.RED,'continue? (enter to continue, q to exit): ',True)):
+        if 'q' in input(colorize(Color.RED,'continue? (enter to continue, q to exit): ',True)):
           break
     except:
       traceback.print_exc()
-      print colorize(Color.GREEN,'>>>> CONTINUING....', bold=True)
+      print(colorize(Color.GREEN,'>>>> CONTINUING....', bold=True))
       continue
   db.close()
   out_db.close()
