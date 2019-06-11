@@ -177,6 +177,8 @@ def main(viz=False):
       if viz:
         if 'q' in input(colorize(Color.RED,'continue? (enter to continue, q to exit): ',True)):
           break
+    except KeyboardInterrupt:
+      exit()
     except:
       traceback.print_exc()
       print(colorize(Color.GREEN,'>>>> CONTINUING....', bold=True))
