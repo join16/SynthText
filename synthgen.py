@@ -652,7 +652,6 @@ class RendererV3(object):
             NUM_REP = 1 # re-use each region three times:
             reg_range = [i]
             for idx in reg_range:
-                print(idx)
                 ireg = reg_idx[idx]
                 try:
                     if self.max_time is None:

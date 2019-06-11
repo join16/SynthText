@@ -366,6 +366,7 @@ class RenderFont(object):
 
             # sample text:
             text = self.text_source.sample(nline,nchar,"LINE")
+            print(text)
 
             if len(text)==0 or np.any([len(line)==0 for line in text]):
                 continue
