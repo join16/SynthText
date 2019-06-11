@@ -178,6 +178,7 @@ def main(viz=False):
         if 'q' in input(colorize(Color.RED,'continue? (enter to continue, q to exit): ',True)):
           break
     except KeyboardInterrupt:
+      print("keyboard interrupt detected.")
       exit()
     except:
       traceback.print_exc()
