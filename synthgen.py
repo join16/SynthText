@@ -371,7 +371,7 @@ class RendererV3(object):
         self.min_char_height = 8 #px
         self.min_asp_ratio = 0.4 #
 
-        self.max_text_regions = 1
+        self.max_text_regions = 100
 
         self.max_time = max_time
 
@@ -644,9 +644,15 @@ class RendererV3(object):
 
             # process regions: 
             num_txt_regions = len(reg_idx)
+
+            if i >= num_txt_regions:
+                print("{} exceeds max regions ({})".format(i, num_txt_regions))
+                break
+
             NUM_REP = 1 # re-use each region three times:
-            reg_range = np.arange(NUM_REP * num_txt_regions) % num_txt_regions
+            reg_range = [i]
             for idx in reg_range:
+                print(idx)
                 ireg = reg_idx[idx]
                 try:
                     if self.max_time is None:

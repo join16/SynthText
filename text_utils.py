@@ -340,6 +340,8 @@ class RenderFont(object):
         # let's just place one text-instance for now
         ## TODO : change this to allow multiple text instances?
         i = 0
+        self.max_shrink_trials = 1
+
         while i < self.max_shrink_trials and max_font_h > self.min_font_h:
             # if i > 0:
             #     print colorize(Color.BLUE, "shrinkage trial : %d"%i, True)
@@ -363,8 +365,8 @@ class RenderFont(object):
             assert nline >= 1 and nchar >= self.min_nchar
 
             # sample text:
-            text_type = sample_weighted(self.p_text)
-            text = self.text_source.sample(nline,nchar,text_type)
+            text = self.text_source.sample(nline,nchar,"LINE")
+
             if len(text)==0 or np.any([len(line)==0 for line in text]):
                 continue
             #print colorize(Color.GREEN, text)
