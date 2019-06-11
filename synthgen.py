@@ -647,6 +647,7 @@ class RendererV3(object):
 
             if i >= num_txt_regions:
                 print("{} exceeds max regions ({})".format(i, num_txt_regions))
+                print(res)
                 break
 
             NUM_REP = 1 # re-use each region three times:
