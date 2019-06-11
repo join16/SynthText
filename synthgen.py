@@ -647,7 +647,7 @@ class RendererV3(object):
 
             if i >= num_txt_regions:
                 print("{} exceeds max regions ({})".format(i, num_txt_regions))
-                print(res)
+                print(len(res))
                 break
 
             NUM_REP = 1 # re-use each region three times:
@@ -667,6 +667,9 @@ class RendererV3(object):
                 except TimeoutException as e:
                     print(e)
                     continue
+                except KeyboardInterrupt:
+                    print("good bye!")
+                    exit()
                 except:
                     traceback.print_exc()
                     # some error in placing text on the region
@@ -675,6 +678,7 @@ class RendererV3(object):
                 if txt_render_res is not None:
                     placed = True
                     img,text,bb,collision_mask = txt_render_res
+                    print("text rendered", text)
                     # update the region collision mask:
                     place_masks[ireg] = collision_mask
                     # store the result:
